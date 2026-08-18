@@ -60,15 +60,57 @@ const crudReducer = (state = INITIAL_STATE, action) => {
         },
       };
     case actionTypes.REQUEST_SUCCESS:
-      return {
-        ...state,
-        [keyState]: {
-          ...state[keyState],
-          result: payload,
-          isLoading: false,
-          isSuccess: true,
+  // When a delete succeeds, remove the deleted item
+  // immediately from the current table list.
+  if (keyState === "delete") {
+    const deletedId = payload?._id;
+
+    const currentItems = state.list.result.items || [];
+
+    const updatedItems = deletedId
+      ? currentItems.filter((item) => item._id !== deletedId)
+      : currentItems;
+
+    return {
+      ...state,
+
+      delete: {
+        ...state.delete,
+        result: payload,
+        isLoading: false,
+        isSuccess: true,
+      },
+
+      list: {
+        ...state.list,
+
+        result: {
+          ...state.list.result,
+
+          items: updatedItems,
+
+          pagination: {
+            ...state.list.result.pagination,
+            total: Math.max(
+              0,
+              state.list.result.pagination.total -
+                (deletedId ? 1 : 0)
+            ),
+          },
         },
-      };
+      },
+    };
+  }
+
+  return {
+    ...state,
+    [keyState]: {
+      ...state[keyState],
+      result: payload,
+      isLoading: false,
+      isSuccess: true,
+    },
+  };
     case actionTypes.CURRENT_ACTION:
       return {
         ...state,

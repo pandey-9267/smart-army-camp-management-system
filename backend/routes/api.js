@@ -8,14 +8,12 @@ const clientController = require("../controllers/clientController");
 const leadController = require("../controllers/leadController");
 const productController = require("../controllers/productController");
 const campController = require("../controllers/campController");
-
-// add recent
+const equipmentController = require("../controllers/equipmentController");
+const maintenanceController = require("../controllers/maintenanceController");
 const resourceController = require("../controllers/resourceController");
-
-// add recent 
 const consumptionController = require("../controllers/consumptionController");
 
-//_______________________________ Admin management_______________________________
+//_______________________________ Admin management _______________________________
 
 router.route("/admin/create").post(catchErrors(adminController.create));
 router.route("/admin/read/:id").get(catchErrors(adminController.read));
@@ -50,8 +48,15 @@ router.route("/lead/list").get(catchErrors(leadController.list));
 
 router.route("/product/create").post(catchErrors(productController.create));
 router.route("/product/read/:id").get(catchErrors(productController.read));
-router.route("/product/update/:id").patch(catchErrors(productController.update));
-router.route("/product/delete/:id").delete(catchErrors(productController.delete));
+
+router
+  .route("/product/update/:id")
+  .patch(catchErrors(productController.update));
+
+router
+  .route("/product/delete/:id")
+  .delete(catchErrors(productController.delete));
+
 router.route("/product/search").get(catchErrors(productController.search));
 router.route("/product/list").get(catchErrors(productController.list));
 
@@ -64,16 +69,85 @@ router.route("/camp/delete/:id").delete(catchErrors(campController.delete));
 router.route("/camp/search").get(catchErrors(campController.search));
 router.route("/camp/list").get(catchErrors(campController.list));
 
-//______________add recent____________________ API for resources ___________________________
+//_____________________ API for equipment ______________________
 
-router.route("/resource/create").post(catchErrors(resourceController.create));
-router.route("/resource/read/:id").get(catchErrors(resourceController.read));
-router.route("/resource/update/:id").patch(catchErrors(resourceController.update));
-router.route("/resource/delete/:id").delete(catchErrors(resourceController.delete));
-router.route("/resource/search").get(catchErrors(resourceController.search));
-router.route("/resource/list").get(catchErrors(resourceController.list));
+router
+  .route("/equipment/create")
+  .post(catchErrors(equipmentController.create));
 
-//____add recent_________________________________ API for consumption ___________________________
+router
+  .route("/equipment/read/:id")
+  .get(catchErrors(equipmentController.read));
+
+router
+  .route("/equipment/update/:id")
+  .patch(catchErrors(equipmentController.update));
+
+router
+  .route("/equipment/delete/:id")
+  .delete(catchErrors(equipmentController.delete));
+
+router
+  .route("/equipment/search")
+  .get(catchErrors(equipmentController.search));
+
+router
+  .route("/equipment/list")
+  .get(catchErrors(equipmentController.list));
+
+//_____________________ API for maintenance ______________________
+
+router
+  .route("/maintenance/create")
+  .post(catchErrors(maintenanceController.create));
+
+router
+  .route("/maintenance/read/:id")
+  .get(catchErrors(maintenanceController.read));
+
+router
+  .route("/maintenance/update/:id")
+  .patch(catchErrors(maintenanceController.update));
+
+router
+  .route("/maintenance/delete/:id")
+  .delete(catchErrors(maintenanceController.delete));
+
+router
+  .route("/maintenance/search")
+  .get(catchErrors(maintenanceController.search));
+
+router
+  .route("/maintenance/list")
+  .get(catchErrors(maintenanceController.list));
+
+//_____________________ API for resources ______________________
+
+router
+  .route("/resource/create")
+  .post(catchErrors(resourceController.create));
+
+router
+  .route("/resource/read/:id")
+  .get(catchErrors(resourceController.read));
+
+router
+  .route("/resource/update/:id")
+  .patch(catchErrors(resourceController.update));
+
+router
+  .route("/resource/delete/:id")
+  .delete(catchErrors(resourceController.delete));
+
+router
+  .route("/resource/search")
+  .get(catchErrors(resourceController.search));
+
+router
+  .route("/resource/list")
+  .get(catchErrors(resourceController.list));
+
+//_____________________ API for consumption ______________________
 
 router
   .route("/consumption/create")
@@ -82,6 +156,10 @@ router
 router
   .route("/consumption/read/:id")
   .get(catchErrors(consumptionController.read));
+
+router
+  .route("/consumption/delete/:id")
+  .delete(catchErrors(consumptionController.delete));
 
 router
   .route("/consumption/list")

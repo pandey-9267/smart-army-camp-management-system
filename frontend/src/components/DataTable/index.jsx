@@ -8,35 +8,65 @@ import { selectListItems } from "@/redux/crud/selectors";
 
 import uniqueId from "@/utils/uinqueId";
 
-export default function DataTable({ config, DropDownRowMenu, AddNewItem }) {
-  let { entity, dataTableColumns, dataTableTitle } = config;
-  dataTableColumns = [
+export default function DataTable({
+  config,
+  DropDownRowMenu,
+  AddNewItem,
+}) {
+  const {
+    entity,
+    dataTableColumns,
+    dataTableTitle,
+  } = config;
+
+  const columns = [
     ...dataTableColumns,
     {
       title: "",
       render: (row) => (
-        <Dropdown overlay={DropDownRowMenu({ row })} trigger={["click"]}>
-          <EllipsisOutlined style={{ cursor: "pointer", fontSize: "24px" }} />
+        <Dropdown
+          overlay={<DropDownRowMenu row={row} />}
+          trigger={["click"]}
+        >
+          <EllipsisOutlined
+            style={{
+              cursor: "pointer",
+              fontSize: "24px",
+            }}
+          />
         </Dropdown>
       ),
     },
   ];
 
-  const { result: listResult, isLoading: listIsLoading } = useSelector(
-    selectListItems
-  );
+  const {
+    result: listResult,
+    isLoading: listIsLoading,
+  } = useSelector(selectListItems);
 
   const { pagination, items } = listResult;
 
   const dispatch = useDispatch();
 
-  const handelDataTableLoad = useCallback((pagination) => {
-    dispatch(crud.list(entity, pagination.current));
-  }, []);
+  const handelDataTableLoad = useCallback(
+    (pagination) => {
+      dispatch(
+        crud.list(
+          entity,
+          pagination.current
+        )
+      );
+    },
+    [dispatch, entity]
+  );
 
   useEffect(() => {
     dispatch(crud.list(entity));
-  }, []);
+  }, [dispatch, entity]);
+
+  const handleRefresh = () => {
+    dispatch(crud.list(entity));
+  };
 
   return (
     <>
@@ -45,17 +75,25 @@ export default function DataTable({ config, DropDownRowMenu, AddNewItem }) {
         title={dataTableTitle}
         ghost={false}
         extra={[
-          <Button onClick={handelDataTableLoad} key={`${uniqueId()}`}>
+          <Button
+            onClick={handleRefresh}
+            key={`${uniqueId()}`}
+          >
             Refresh
           </Button>,
-          <AddNewItem key={`${uniqueId()}`} config={config} />,
+
+          <AddNewItem
+            key={`${uniqueId()}`}
+            config={config}
+          />,
         ]}
         style={{
           padding: "20px 0px",
         }}
-      ></PageHeader>
+      />
+
       <Table
-        columns={dataTableColumns}
+        columns={columns}
         rowKey={(item) => item._id}
         dataSource={items}
         pagination={pagination}

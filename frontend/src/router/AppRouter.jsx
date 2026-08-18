@@ -49,6 +49,16 @@ const Alerts = lazy(() =>
   import(/* webpackChunkName: "AlertsPage" */ "@/pages/Alerts")
 );
 
+// add recent
+const Equipment = lazy(() =>
+  import(/* webpackChunkName: "EquipmentPage" */ "@/pages/Equipment")
+);
+
+// add recent 
+const Maintenance = lazy(() =>
+  import(/* webpackChunkName: "MaintenancePage" */ "@/pages/Maintenance")
+);
+
 const Logout = lazy(() =>
   import(/* webpackChunkName: "LogoutPage" */ "@/pages/Logout")
 );
@@ -83,6 +93,20 @@ export default function AppRouter() {
           <PrivateRoute
             path="/alerts"
             component={Alerts}
+            exact
+          />
+
+          {/* add recent */}
+          <PrivateRoute
+            path="/equipment"
+            component={Equipment}
+            exact
+          />
+
+          {/* add recent  */}
+          <PrivateRoute
+            path="/maintenance"
+            component={Maintenance}
             exact
           />
 

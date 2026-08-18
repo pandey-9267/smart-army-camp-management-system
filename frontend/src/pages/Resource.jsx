@@ -47,37 +47,62 @@ function Resource() {
     },
   ];
 
-  const dataTableColumns = [
-    {
-  title: "Days Remaining",
-  render: (_, record) => {
-    if (!record.averageDailyConsumption) return "Not calculated";
-
-    return (
-      (record.currentQuantity / record.averageDailyConsumption).toFixed(1) +
-      " days"
-    );
+ const dataTableColumns = [
+  {
+    title: "Resource",
+    dataIndex: "resourceName",
   },
-},
-{
-  title: "Status",
-  render: (_, record) => {
-    const current = Number(record.currentQuantity || 0);
-    const minimum = Number(record.minimumStockLevel || 0);
-    const daily = Number(record.averageDailyConsumption || 0);
-
-    if (current <= minimum) {
-      return "🔴 Low Stock";
-    }
-
-    if (daily > 0 && current / daily <= 3) {
-      return "🟡 Critical Soon";
-    }
-
-    return "🟢 Healthy";
+  {
+    title: "Category",
+    dataIndex: "category",
   },
-},
-  ];
+  {
+    title: "Camp",
+    render: (_, record) =>
+      record.camp ? record.camp.campName : "-",
+  },
+  {
+    title: "Quantity",
+    render: (_, record) =>
+      `${record.currentQuantity || 0} ${record.unit || ""}`,
+  },
+  {
+    title: "Minimum Level",
+    render: (_, record) =>
+      `${record.minimumStockLevel || 0} ${record.unit || ""}`,
+  },
+  {
+    title: "Days Remaining",
+    render: (_, record) => {
+      const current = Number(record.currentQuantity || 0);
+      const daily = Number(record.averageDailyConsumption || 0);
+
+      if (!daily) {
+        return "Not calculated";
+      }
+
+      return `${(current / daily).toFixed(1)} days`;
+    },
+  },
+  {
+    title: "Status",
+    render: (_, record) => {
+      const current = Number(record.currentQuantity || 0);
+      const minimum = Number(record.minimumStockLevel || 0);
+      const daily = Number(record.averageDailyConsumption || 0);
+
+      if (current <= minimum) {
+        return <span style={{ color: "#ff4d4f" }}>● Low Stock</span>;
+      }
+
+      if (daily > 0 && current / daily <= 3) {
+        return <span style={{ color: "#faad14" }}>● Critical Soon</span>;
+      }
+
+      return <span style={{ color: "#52c41a" }}>● Healthy</span>;
+    },
+  },
+];
 
   const config = {
     entity,

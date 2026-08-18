@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Row, Col, Button } from "antd";
+import React, { useEffect, useState } from "react";
+import { Row, Col } from "antd";
 import { useSelector } from "react-redux";
 
 import { useCrudContext } from "@/context/crud";
@@ -7,50 +7,83 @@ import { selectCurrentItem } from "@/redux/crud/selectors";
 import { valueByString } from "@/utils/helpers";
 
 export default function ReadItem({ config }) {
-  let { readColumns } = config;
+  const { readColumns } = config;
+
   const { result: currentResult } = useSelector(selectCurrentItem);
+
   const { state } = useCrudContext();
   const { isReadBoxOpen } = state;
+
   const [listState, setListState] = useState([]);
 
-  const isFirstRun = useRef(true);
   useEffect(() => {
-    console.log("currentResult :", currentResult);
-    console.log("readColumns :", readColumns);
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
+    if (!currentResult) {
+      setListState([]);
       return;
     }
-    const list = [];
-    readColumns.map((props) => {
-      const propsKey = props.dataIndex;
-      const propsTitle = props.title;
-      const value = valueByString(currentResult, propsKey);
-      list.push({ propsKey, label: propsTitle, value: value });
+
+    const list = readColumns.map((column, index) => {
+      const propsKey =
+        column.dataIndex || column.key || `column-${index}`;
+
+      const propsTitle = column.title;
+
+      let value = "-";
+
+      // Normal dataIndex column
+      if (column.dataIndex) {
+        value = valueByString(
+          currentResult,
+          column.dataIndex
+        );
+      }
+
+      // Custom render column
+      if (column.render) {
+        value = column.render(
+          column.dataIndex
+            ? valueByString(currentResult, column.dataIndex)
+            : undefined,
+          currentResult,
+          index
+        );
+      }
+
+      return {
+        propsKey,
+        label: propsTitle,
+        value: value ?? "-",
+      };
     });
+
     setListState(list);
-  }, [currentResult]);
+  }, [currentResult, readColumns]);
 
   const show = isReadBoxOpen
-    ? { display: "block", opacity: 1 }
-    : { display: "none", opacity: 0 };
+    ? {
+        display: "block",
+        opacity: 1,
+      }
+    : {
+        display: "none",
+        opacity: 0,
+      };
 
-  const itemsList = listState.map((item) => {
-    return (
-      <Row key={item.propsKey} gutter={12}>
-        <Col className="gutter-row" span={8}>
-          <p>{item.label}</p>
-        </Col>
-        <Col className="gutter-row" span={2}>
-          <p> : </p>
-        </Col>
-        <Col className="gutter-row" span={14}>
-          <p>{item.value}</p>
-        </Col>
-      </Row>
-    );
-  });
+  const itemsList = listState.map((item) => (
+    <Row key={item.propsKey} gutter={12}>
+      <Col className="gutter-row" span={8}>
+        <p>{item.label}</p>
+      </Col>
 
-  console.log("itemsList :", itemsList);
+      <Col className="gutter-row" span={2}>
+        <p>:</p>
+      </Col>
+
+      <Col className="gutter-row" span={14}>
+        <p>{item.value}</p>
+      </Col>
+    </Row>
+  ));
+
   return <div style={show}>{itemsList}</div>;
 }

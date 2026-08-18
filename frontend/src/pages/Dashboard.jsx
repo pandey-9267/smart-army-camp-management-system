@@ -1,281 +1,529 @@
-import React, { useRef, useState } from "react";
-import { Form, Input, InputNumber, Space, Divider, Row, Col } from "antd";
-
-import { Layout, Breadcrumb, Statistic, Progress, Tag } from "antd";
-
-import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
+import React, { useEffect, useState } from "react";
+import { Row, Col, Card, Statistic, Table, Tag, Progress, Alert, Spin } from "antd";
+import {
+  EnvironmentOutlined,
+  DatabaseOutlined,
+  ToolOutlined,
+  WarningOutlined,
+  FireOutlined,
+} from "@ant-design/icons";
 
 import { DashboardLayout } from "@/layout";
-import RecentTable from "@/components/RecentTable";
+import { request } from "@/request";
 
-const TopCard = ({ title, tagContent, tagColor, prefix }) => {
-  return (
-    <Col className="gutter-row" span={6}>
-      <div
-        className="whiteBox shadow"
-        style={{ color: "#595959", fontSize: 13, height: "106px" }}
-      >
-        <div
-          className="pad15 strong"
-          style={{ textAlign: "center", justifyContent: "center" }}
-        >
-          <h3 style={{ color: "#22075e", marginBottom: 0 }}>{title}</h3>
-        </div>
-        <Divider style={{ padding: 0, margin: 0 }}></Divider>
-        <div className="pad15">
-          <Row gutter={[0, 0]}>
-            <Col className="gutter-row" span={11} style={{ textAlign: "left" }}>
-              <div className="left">{prefix}</div>
-            </Col>
-            <Col className="gutter-row" span={2}>
-              <Divider
-                style={{ padding: "10px 0", justifyContent: "center" }}
-                type="vertical"
-              ></Divider>
-            </Col>
-            <Col
-              className="gutter-row"
-              span={11}
-              style={{ display: "flex", justifyContent: "center" }}
-            >
-              <Tag
-                color={tagColor}
-                style={{ margin: "0 auto", justifyContent: "center" }}
-              >
-                {tagContent}
-              </Tag>
-            </Col>
-          </Row>
-        </div>
-      </div>
-    </Col>
-  );
-};
-const PreviewState = ({ tag, color, value }) => {
-  let colorCode = "#000";
-  switch (color) {
-    case "bleu":
-      colorCode = "#1890ff";
-      break;
-    case "green":
-      colorCode = "#95de64";
-      break;
-    case "red":
-      colorCode = "#ff4d4f";
-      break;
-    case "orange":
-      colorCode = "#ffa940";
-      break;
-    case "purple":
-      colorCode = "#722ed1";
-      break;
-    case "grey":
-      colorCode = "#595959";
-      break;
-    case "cyan":
-      colorCode = "#13c2c2";
-      break;
-    case "brown":
-      colorCode = "#614700";
-      break;
-    default:
-      break;
-  }
-  return (
-    <div style={{ color: "#595959", marginBottom: 5 }}>
-      <div className="left alignLeft">{tag}</div>
-      <div className="right alignRight">{value} %</div>
-      <Progress
-        percent={value}
-        showInfo={false}
-        strokeColor={{
-          "0%": colorCode,
-          "100%": colorCode,
-        }}
-      />
-    </div>
-  );
-};
 export default function Dashboard() {
-  const leadColumns = [
+  const [camps, setCamps] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [consumptions, setConsumptions] = useState([]);
+  const [equipment, setEquipment] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      setLoading(true);
+
+      try {
+        const [campData, resourceData, consumptionData, equipmentData] =
+          await Promise.all([
+            request.list("camp", { items: 100 }),
+            request.list("resource", { items: 100 }),
+            request.list("consumption", { items: 10 }),
+            request.list("equipment", { items: 100 }),
+          ]);
+
+        if (campData.success) {
+          setCamps(campData.result || []);
+        }
+
+        if (resourceData.success) {
+          setResources(resourceData.result || []);
+        }
+
+        if (consumptionData.success) {
+          setConsumptions(consumptionData.result || []);
+        }
+
+        if (equipmentData.success) {
+          setEquipment(equipmentData.result || []);
+        }
+      } catch (error) {
+        console.error("Dashboard loading error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, []);
+
+  /*
+   * Resource alert calculation
+   *
+   * Critical:
+   *  - stock is at/below minimum level
+   *  OR
+   *  - 3 or fewer days remaining
+   *
+   * Warning:
+   *  - more than 3 but 7 or fewer days remaining
+   */
+  const getResourceStatus = (resource) => {
+    const current = Number(resource.currentQuantity || 0);
+    const minimum = Number(resource.minimumStockLevel || 0);
+    const daily = Number(resource.averageDailyConsumption || 0);
+
+    const daysRemaining = daily > 0 ? current / daily : null;
+
+    if (current <= minimum) {
+      return {
+        type: "error",
+        label: "Low Stock",
+        daysRemaining,
+      };
+    }
+
+    if (daysRemaining !== null && daysRemaining <= 3) {
+      return {
+        type: "warning",
+        label: "Critical Soon",
+        daysRemaining,
+      };
+    }
+
+    if (daysRemaining !== null && daysRemaining <= 7) {
+      return {
+        type: "warning",
+        label: "Monitor",
+        daysRemaining,
+      };
+    }
+
+    return {
+      type: "success",
+      label: "Healthy",
+      daysRemaining,
+    };
+  };
+
+  const alertResources = resources.filter((resource) => {
+    const status = getResourceStatus(resource);
+
+    return (
+      status.type === "error" ||
+      status.label === "Critical Soon"
+    );
+  });
+
+  const lowStockResources = resources.filter((resource) => {
+    const current = Number(resource.currentQuantity || 0);
+    const minimum = Number(resource.minimumStockLevel || 0);
+
+    return current <= minimum;
+  });
+
+  // add recent
+  const criticalResources = resources.filter((resource) => {
+    const status = getResourceStatus(resource);
+    return status.label === "Critical Soon";
+  });
+
+  const healthyResources = resources.filter((resource) => {
+    const status = getResourceStatus(resource);
+    return status.label === "Healthy";
+  });
+
+  const operationalCamps = camps.filter(
+    (camp) => camp.operationalStatus === "Operational"
+  );
+
+  const operationalEquipment = equipment.filter(
+    (item) => item.operationalStatus === "Operational"
+  );
+
+  const totalPersonnel = camps.reduce(
+    (total, camp) => total + Number(camp.currentPersonnel || 0),
+    0
+  );
+
+  const totalCapacity = camps.reduce(
+    (total, camp) => total + Number(camp.maximumCapacity || 0),
+    0
+  );
+
+  const capacityPercentage =
+    totalCapacity > 0
+      ? Math.round((totalPersonnel / totalCapacity) * 100)
+      : 0;
+
+  const resourceColumns = [
     {
-      title: "Client",
-      dataIndex: "client",
+      title: "Resource",
+      render: (_, record) => record.resourceName,
     },
     {
-      title: "phone",
-      dataIndex: "phone",
+      title: "Camp",
+      render: (_, record) =>
+        record.camp ? record.camp.campName : "-",
+    },
+    {
+      title: "Stock",
+      render: (_, record) =>
+        `${record.currentQuantity} ${record.unit}`,
+    },
+    {
+      title: "Days Remaining",
+      render: (_, record) => {
+        const daily = Number(record.averageDailyConsumption || 0);
+
+        if (!daily) {
+          return "Not calculated";
+        }
+
+        const days =
+          Number(record.currentQuantity || 0) / daily;
+
+        return `${days.toFixed(1)} days`;
+      },
     },
     {
       title: "Status",
-      dataIndex: "status",
-      render: (status) => {
-        let color = status === "pending" ? "volcano" : "green";
+      render: (_, record) => {
+        const status = getResourceStatus(record);
 
-        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+        return (
+          <Tag color={status.type}>
+            {status.label}
+          </Tag>
+        );
       },
     },
   ];
 
-  const productColumns = [
+  const campColumns = [
     {
-      title: "Product Name",
-      dataIndex: "productName",
+      title: "Camp",
+      dataIndex: "campName",
     },
-
     {
-      title: "Price",
-      dataIndex: "price",
+      title: "Location",
+      dataIndex: "location",
+    },
+    {
+      title: "Personnel",
+      render: (_, record) =>
+        `${record.currentPersonnel} / ${record.maximumCapacity}`,
+    },
+    {
+      title: "Capacity",
+      render: (_, record) => {
+        const capacity =
+          Number(record.maximumCapacity || 0);
+
+        const personnel =
+          Number(record.currentPersonnel || 0);
+
+        const percent =
+          capacity > 0
+            ? Math.round((personnel / capacity) * 100)
+            : 0;
+
+        return (
+          <Progress
+            percent={percent}
+            size="small"
+          />
+        );
+      },
     },
     {
       title: "Status",
-      dataIndex: "status",
-      render: (status) => {
-        let color = status === "available" ? "green" : "volcano";
-
-        return <Tag color={color}>{status.toUpperCase()}</Tag>;
-      },
+      dataIndex: "operationalStatus",
+      render: (status) => (
+        <Tag
+          color={
+            status === "Operational"
+              ? "green"
+              : status === "Limited"
+                ? "orange"
+                : "red"
+          }
+        >
+          {status}
+        </Tag>
+      ),
     },
   ];
+
+  const consumptionColumns = [
+    {
+      title: "Date",
+      render: (_, record) =>
+        new Date(record.date).toLocaleDateString(),
+    },
+    {
+      title: "Resource",
+      render: (_, record) =>
+        record.resource
+          ? record.resource.resourceName
+          : "-",
+    },
+    {
+      title: "Camp",
+      render: (_, record) =>
+        record.camp
+          ? record.camp.campName
+          : "-",
+    },
+    {
+      title: "Used",
+      render: (_, record) =>
+        `${record.quantityUsed} ${record.resource?.unit || ""
+        }`,
+    },
+  ];
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div
+          style={{
+            height: "400px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Spin size="large" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
+      {/* ================= SUMMARY CARDS ================= */}
+
       <Row gutter={[24, 24]}>
-        <TopCard
-          title={"Leads"}
-          tagColor={"cyan"}
-          prefix={"This month"}
-          tagContent={"34 000 $"}
-        />
-        <TopCard
-          title={"Order"}
-          tagColor={"purple"}
-          prefix={"This month"}
-          tagContent={"34 000 $"}
-        />
-        <TopCard
-          title={"Payment"}
-          tagColor={"green"}
-          prefix={"This month"}
-          tagContent={"34 000 $"}
-        />
-        <TopCard
-          title={"Due Balance"}
-          tagColor={"red"}
-          prefix={"Not Paid"}
-          tagContent={"34 000 $"}
-        />
-      </Row>
-      <div className="space30"></div>
-      <Row gutter={[24, 24]}>
-        <Col className="gutter-row" span={18}>
-          <div className="whiteBox shadow" style={{ height: "380px" }}>
-            <Row className="pad10" gutter={[0, 0]}>
-              <Col className="gutter-row" span={8}>
-                <div className="pad15">
-                  <h3 style={{ color: "#22075e", marginBottom: 15 }}>
-                    Lead Preview
-                  </h3>
-                  <PreviewState tag={"Draft"} color={"grey"} value={3} />
-                  <PreviewState tag={"Pending"} color={"bleu"} value={5} />
-                  <PreviewState tag={"Not Paid"} color={"orange"} value={12} />
-                  <PreviewState tag={"Overdue"} color={"red"} value={6} />
-                  <PreviewState
-                    tag={"Partially Paid"}
-                    color={"cyan"}
-                    value={8}
-                  />
-                  <PreviewState tag={"Paid"} color={"green"} value={55} />
-                </div>
-              </Col>
-              <Col className="gutter-row" span={8}>
-                {" "}
-                <div className="pad15">
-                  <h3 style={{ color: "#22075e", marginBottom: 15 }}>
-                    Quote Preview
-                  </h3>
-                  <PreviewState tag={"Draft"} color={"grey"} value={3} />
-                  <PreviewState tag={"Pending"} color={"bleu"} value={5} />
-                  <PreviewState tag={"Not Paid"} color={"orange"} value={12} />
-                  <PreviewState tag={"Overdue"} color={"red"} value={6} />
-                  <PreviewState
-                    tag={"Partially Paid"}
-                    color={"cyan"}
-                    value={8}
-                  />
-                  <PreviewState tag={"Paid"} color={"green"} value={55} />
-                </div>
-              </Col>
-              <Col className="gutter-row" span={8}>
-                {" "}
-                <div className="pad15">
-                  <h3 style={{ color: "#22075e", marginBottom: 15 }}>
-                    Order Preview
-                  </h3>
-                  <PreviewState tag={"Draft"} color={"grey"} value={3} />
-                  <PreviewState tag={"Pending"} color={"bleu"} value={5} />
-                  <PreviewState tag={"Not Paid"} color={"orange"} value={12} />
-                  <PreviewState tag={"Overdue"} color={"red"} value={6} />
-                  <PreviewState
-                    tag={"Partially Paid"}
-                    color={"cyan"}
-                    value={8}
-                  />
-                  <PreviewState tag={"Paid"} color={"green"} value={55} />
-                </div>
-              </Col>
-            </Row>
-          </div>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Total Camps"
+              value={camps.length}
+              prefix={<EnvironmentOutlined />}
+            />
+            <div style={{ marginTop: 10 }}>
+              <Tag color="green">
+                {operationalCamps.length} Operational
+              </Tag>
+            </div>
+          </Card>
         </Col>
 
-        <Col className="gutter-row" span={6}>
-          <div className="whiteBox shadow" style={{ height: "380px" }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Resources"
+              value={resources.length}
+              prefix={<DatabaseOutlined />}
+            />
+
             <div
-              className="pad20"
-              style={{ textAlign: "center", justifyContent: "center" }}
+              style={{
+                marginTop: 10,
+                display: "flex",
+                gap: 4,
+                flexWrap: "wrap",
+              }}
             >
-              <h3 style={{ color: "#22075e", marginBottom: 30 }}>
-                Customer Preview
-              </h3>
+              <Tag color="red">
+                {lowStockResources.length} Low Stock
+              </Tag>
 
-              <Progress type="dashboard" percent={25} width={148} />
-              <p>New Customer this Month</p>
-              <Divider />
-              <Statistic
-                title="Active Customer"
-                value={11.28}
-                precision={2}
-                valueStyle={{ color: "#3f8600" }}
-                prefix={<ArrowUpOutlined />}
-                suffix="%"
-              />
+              <Tag color="orange">
+                {criticalResources.length} Critical
+              </Tag>
+
+              <Tag color="green">
+                {healthyResources.length} Healthy
+              </Tag>
             </div>
-          </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Equipment"
+              value={equipment.length}
+              prefix={<ToolOutlined />}
+            />
+            <div style={{ marginTop: 10 }}>
+              <Tag color="green">
+                {operationalEquipment.length} Operational
+              </Tag>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Critical Alerts"
+              value={alertResources.length}
+              prefix={<WarningOutlined />}
+              valueStyle={{
+                color:
+                  alertResources.length > 0
+                    ? "#cf1322"
+                    : "#3f8600",
+              }}
+            />
+            <div style={{ marginTop: 10 }}>
+              {alertResources.length > 0 ? (
+                <Tag color="red">
+                  Attention Required
+                </Tag>
+              ) : (
+                <Tag color="green">
+                  All Clear
+                </Tag>
+              )}
+            </div>
+          </Card>
         </Col>
       </Row>
-      <div className="space30"></div>
-      <Row gutter={[24, 24]}>
-        <Col className="gutter-row" span={12}>
-          <div className="whiteBox shadow">
-            <div className="pad20">
-              <h3 style={{ color: "#22075e", marginBottom: 5 }}>
-                Recent Leads
-              </h3>
-            </div>
 
-            <RecentTable entity={"lead"} dataTableColumns={leadColumns} />
-          </div>
+      <div style={{ height: 24 }} />
+
+      {/* ================= ALERTS ================= */}
+
+      {alertResources.length > 0 && (
+        <Row gutter={[24, 24]}>
+          <Col span={24}>
+            <Card
+              title={
+                <span>
+                  <WarningOutlined
+                    style={{ marginRight: 8 }}
+                  />
+                  Resource Alerts
+                </span>
+              }
+            >
+              {alertResources.slice(0, 5).map((resource) => {
+                const status =
+                  getResourceStatus(resource);
+
+                return (
+                  <Alert
+                    key={resource._id}
+                    type={status.type}
+                    showIcon
+                    style={{ marginBottom: 10 }}
+                    message={`${resource.resourceName} - ${status.label}`}
+                    description={
+                      status.type === "error"
+                        ? `Current stock is ${resource.currentQuantity} ${resource.unit}, which is at or below the minimum level of ${resource.minimumStockLevel} ${resource.unit}.`
+                        : `Only ${status.daysRemaining?.toFixed(1)
+                        } days of stock remaining.`
+                    }
+                  />
+                );
+              })}
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      <div style={{ height: 24 }} />
+
+      {/* ================= CAMP CAPACITY ================= */}
+
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={8}>
+          <Card title="Camp Capacity">
+            <div style={{ textAlign: "center" }}>
+              <Progress
+                type="dashboard"
+                percent={capacityPercentage}
+              />
+
+              <h3>
+                {totalPersonnel} / {totalCapacity}
+              </h3>
+
+              <p>
+                Current personnel across all camps
+              </p>
+
+              <Tag color="blue">
+                {operationalCamps.length} Operational Camps
+              </Tag>
+            </div>
+          </Card>
         </Col>
 
-        <Col className="gutter-row" span={12}>
-          <div className="whiteBox shadow">
-            <div className="pad20">
-              <h3 style={{ color: "#22075e", marginBottom: 5 }}>
-                Recent Products
-              </h3>
-            </div>
-            <RecentTable entity={"product"} dataTableColumns={productColumns} />
-          </div>
+        <Col xs={24} lg={16}>
+          <Card title="Resource Stock Status">
+            <Table
+              columns={resourceColumns}
+              dataSource={resources.slice(0, 5)}
+              rowKey={(record) => record._id}
+              pagination={false}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <div style={{ height: 24 }} />
+
+      {/* ================= CAMPS ================= */}
+
+      <Row gutter={[24, 24]}>
+        <Col span={24}>
+          <Card
+            title={
+              <span>
+                <EnvironmentOutlined
+                  style={{ marginRight: 8 }}
+                />
+                Camp Overview
+              </span>
+            }
+          >
+            <Table
+              columns={campColumns}
+              dataSource={camps.slice(0, 5)}
+              rowKey={(record) => record._id}
+              pagination={false}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <div style={{ height: 24 }} />
+
+      {/* ================= CONSUMPTION ================= */}
+
+      <Row gutter={[24, 24]}>
+        <Col span={24}>
+          <Card
+            title={
+              <span>
+                <FireOutlined
+                  style={{ marginRight: 8 }}
+                />
+                Recent Consumption
+              </span>
+            }
+          >
+            <Table
+              columns={consumptionColumns}
+              dataSource={consumptions.slice(0, 5)}
+              rowKey={(record) => record._id}
+              pagination={false}
+            />
+          </Card>
         </Col>
       </Row>
     </DashboardLayout>

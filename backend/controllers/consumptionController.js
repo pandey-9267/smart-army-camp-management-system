@@ -11,7 +11,8 @@ consumptionController.create = async (req, res) => {
       return res.status(400).json({
         success: false,
         result: null,
-        message: "Please select a resource and enter a valid quantity used.",
+        message:
+          "Please select a resource and enter a valid quantity used.",
       });
     }
 
@@ -32,7 +33,8 @@ consumptionController.create = async (req, res) => {
       return res.status(400).json({
         success: false,
         result: null,
-        message: "Quantity used cannot be greater than available stock.",
+        message:
+          "Quantity used cannot be greater than available stock.",
       });
     }
 
@@ -51,9 +53,12 @@ consumptionController.create = async (req, res) => {
     return res.status(200).json({
       success: true,
       result,
-      message: "Consumption recorded and stock updated successfully.",
+      message:
+        "Consumption recorded and stock updated successfully.",
     });
-  } catch {
+  } catch (error) {
+    console.error("Consumption create error:", error);
+
     return res.status(500).json({
       success: false,
       result: null,
@@ -81,7 +86,9 @@ consumptionController.read = async (req, res) => {
       result,
       message: "Consumption record found.",
     });
-  } catch {
+  } catch (error) {
+    console.error("Consumption read error:", error);
+
     return res.status(500).json({
       success: false,
       result: null,
@@ -120,11 +127,68 @@ consumptionController.list = async (req, res) => {
       },
       message: "Consumption records loaded successfully.",
     });
-  } catch {
+  } catch (error) {
+    console.error("Consumption list error:", error);
+
     return res.status(500).json({
       success: false,
       result: [],
       message: "Unable to load consumption records.",
+    });
+  }
+};
+
+/*
+ * DELETE CONSUMPTION
+ *
+ * When a consumption record is deleted,
+ * restore the quantity back to the resource.
+ */
+consumptionController.delete = async (req, res) => {
+  try {
+    const consumption = await Consumption.findById(req.params.id);
+
+    if (!consumption) {
+      return res.status(404).json({
+        success: false,
+        result: null,
+        message: "Consumption record not found.",
+      });
+    }
+
+    const resource = await Resource.findById(
+      consumption.resource
+    );
+
+    if (resource) {
+      const usedQuantity = Number(
+        consumption.quantityUsed || 0
+      );
+
+      resource.currentQuantity =
+        Number(resource.currentQuantity || 0) +
+        usedQuantity;
+
+      await resource.save();
+    }
+
+    await Consumption.findByIdAndDelete(
+      req.params.id
+    );
+
+    return res.status(200).json({
+      success: true,
+      result: consumption,
+      message:
+        "Consumption record deleted and resource stock restored successfully.",
+    });
+  } catch (error) {
+    console.error("Consumption delete error:", error);
+
+    return res.status(500).json({
+      success: false,
+      result: null,
+      message: "Unable to delete consumption record.",
     });
   }
 };

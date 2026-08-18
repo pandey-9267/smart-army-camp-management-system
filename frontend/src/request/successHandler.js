@@ -14,29 +14,27 @@ const successHandler = (response, typeNotification = {}) => {
       },
     };
   }
+
   const { data } = response;
-  if (data.success === false) {
+
+  const isEmptyCollection =
+    response.status === 203 &&
+    Array.isArray(data.result) &&
+    data.result.length === 0;
+
+  if (data.success === false && !isEmptyCollection) {
     const message = data && data.message;
     const errorText = message || codeMessage[response.status];
     const { status } = response;
+
     notification.config({
       duration: 20,
     });
+
     notification.error({
       message: `Request error ${status}`,
       description: errorText,
     });
-  } else {
-    const message = data && data.message;
-    const successText = message || codeMessage[response.status];
-    const { status } = response;
-    // notification.config({
-    //   duration: 20,
-    // });
-    // notification.success({
-    //   message: `Request success`,
-    //   description: successText,
-    // });
   }
 
   return data;
